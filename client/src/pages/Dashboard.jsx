@@ -18,6 +18,8 @@ function Dashboard() {
   }, []);
 
   const [messages, setMessages] = useState([]);
+  const [messageText, setMessageText] = useState("");
+  const user = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -33,21 +35,29 @@ function Dashboard() {
       <h2>Dashboard - Coming soon!</h2>
 
       <button
-        onClick={() =>
+        onClick={() => {
+          if (messageText.trim() === "") return;
           socket.emit("message_send", {
-            sender: "000000000000000000000001",
+            sender: user.id,
             receiver: "000000000000000000000002",
-            text: "hii dear",
-          })
-        }
+            text: messageText,
+          });
+          setMessageText("");
+        }}
       >
-        Send Test Message
+        Send
       </button>
-
       <div>
         {messages.map((msg) => (
           <p key={msg._id}>{msg.text}</p>
         ))}
+
+        <input
+          type="text"
+          value={messageText}
+          onChange={(e) => setMessageText(e.target.value)}
+          placeholder="Type a message"
+        />
       </div>
     </>
   );

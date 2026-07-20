@@ -2,8 +2,7 @@ const express = require("express");
 const app = express();
 const http = require("http");
 const { Server } = require("socket.io");
-const Message = require('./models/Message');
-
+const Message = require("./models/Message");
 
 const mongoose = require("mongoose");
 require("dotenv").config();
@@ -36,22 +35,22 @@ const io = new Server(server, {
   },
 });
 
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
 
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
-
-  socket.on('message_send', async (data) => {
-    console.log('Message received:', data);
-
-    const newMessage = await Message.create({
-      sender: data.sender,
-      receiver: data.receiver,
-      text: data.text
-    });
-
-    socket.broadcast.emit('reply', data);
+  socket.on("message_send", async (data) => {
+    try {
+      console.log("Message received:", data);
+      const newMessage = await Message.create({
+        sender: data.sender,
+        receiver: data.receiver,
+        text: data.text,
+      });
+      socket.broadcast.emit("reply", data);
+    } catch (err) {
+      console.log("Error saving message:", err.message);
+    }
   });
 });
-
 
 server.listen(PORT, () => console.log(`server running on port ${PORT}`));
