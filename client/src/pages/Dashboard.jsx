@@ -19,7 +19,9 @@ function Dashboard() {
 
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
-  const user = JSON.parse(localStorage.getItem('user'));
+  const user = JSON.parse(localStorage.getItem("user"));
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -30,16 +32,38 @@ function Dashboard() {
     fetchMessages();
   }, []);
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const res = await api.get("/auth/users", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      setUsers(res.data);
+      console.log(users);
+    };
+    fetchUsers();
+  }, []);
+
   return (
     <>
       <h2>Dashboard - Coming soon!</h2>
 
+      <div>
+        <h3>Contacts</h3>
+        <p>Selected: {selectedUser ? selectedUser.name : "None"}</p>
+        {users.map((u) => (
+          <p key={u._id} onClick={() => setSelectedUser(u)}>
+            {u.name}
+          </p>
+        ))}
+      </div>
+
       <button
         onClick={() => {
           if (messageText.trim() === "") return;
+          if (!selectedUser) return;
           socket.emit("message_send", {
             sender: user.id,
-            receiver: "000000000000000000000002",
+            receiver: selectedUser._id,
             text: messageText,
           });
           setMessageText("");

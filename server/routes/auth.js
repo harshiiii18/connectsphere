@@ -67,4 +67,9 @@ router.get('/profile', authMiddleware, async (req, res) => {
   res.status(200).json(user);
 });
 
+router.get('/users', authMiddleware, async (req, res) => {
+  const users = await User.find({ _id: { $ne: req.userId } }).select('-password');
+  res.status(200).json(users);
+});
+
 module.exports = router;
