@@ -35,6 +35,29 @@ const io = new Server(server, {
   },
 });
 
+const onlineUsers = new Map(); // userId -> socketId
+
+socket.on('user-connected', (userId) => {
+  onlineUsers.set(userId, socket.id);
+  io.emit('user-online', userId); // sabko batao ye user online hai
+});
+
+socket.on('disconnect', () => {
+  let disconnectedUserId = null;
+  
+  for (const [userId, sId] of onlineUsers) {
+    if (sId === socket.id) {
+      disconnectedUserId = userId;
+      break;
+    }
+  }
+
+  if (disconnectedUserId) {
+    onlineUsers.delete(disconnectedUserId);
+    io.emit('user-offline', disconnectedUserId);
+  }
+});
+
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
