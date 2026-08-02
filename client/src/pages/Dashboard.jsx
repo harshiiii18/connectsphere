@@ -7,13 +7,32 @@ function Dashboard() {
   useEffect(() => {
     socket.on("connect", () => {
       console.log("Socket connected:", socket.id);
+      socket.emit("user-connected", user.id);
     });
+
     socket.on("reply", (data) => {
       console.log("Message received:", data);
       setMessages((prevMessages) => [...prevMessages, data]);
     });
+
+    socket.on("user-online", (userId) => {
+      console.log("User online:", userId);
+    });
+
+    socket.on("user-offline", (userId) => {
+      console.log("User offline:", userId);
+    });
+
+    socket.on("user-typing", (senderId) => {
+      setTypingUser(senderId);
+      setTimeout(() => setTypingUser(null), 2000);
+    });
+
     return () => {
       socket.off("connect");
+      socket.off("reply");
+      socket.off("user-online");
+      socket.off("user-offline");
     };
   }, []);
 
@@ -22,6 +41,7 @@ function Dashboard() {
   const user = JSON.parse(localStorage.getItem("user"));
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [typingUser, setTypingUser] = useState(null);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -71,15 +91,29 @@ function Dashboard() {
       >
         Send
       </button>
+      {typingUser && <p>Typing...</p>}
       <div>
-        {messages.map((msg) => (
-          <p key={msg._id}>{msg.text}</p>
-        ))}
+        {messages
+          .filter(
+            (msg) =>
+              selectedUser &&
+              ((msg.sender === user.id && msg.receiver === selectedUser._id) ||
+                (msg.sender === selectedUser._id && msg.receiver === user.id)),
+          )
+          .map((msg) => (
+            <p key={msg._id}>{msg.text}</p>
+          ))}
 
         <input
           type="text"
           value={messageText}
-          onChange={(e) => setMessageText(e.target.value)}
+          onChange={(e) => {
+            setMessageText(e.target.value);
+            socket.emit("typing", {
+              senderId: user.id,
+              receiverId: selectedUser._id,
+            });
+          }}
           placeholder="Type a message"
         />
       </div>
