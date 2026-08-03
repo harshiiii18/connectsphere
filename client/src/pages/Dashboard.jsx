@@ -1,52 +1,47 @@
-import { useEffect } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import socket from "../socket";
 import api from "../api/axios";
 
 function Dashboard() {
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("Socket connected:", socket.id);
-      socket.emit("user-connected", user.id);
-    });
-
-    socket.on("reply", (data) => {
-      console.log("Message received:", data);
-      setMessages((prevMessages) => [...prevMessages, data]);
-    });
-
-    socket.on("user-online", (userId) => {
-      console.log("User online:", userId);
-    });
-
-    socket.on("user-offline", (userId) => {
-      console.log("User offline:", userId);
-    });
-
-    socket.on("user-typing", (senderId) => {
-      setTypingUser(senderId);
-      setTimeout(() => setTypingUser(null), 2000);
-    });
-
-    return () => {
-      socket.off("connect");
-      socket.off("reply");
-      socket.off("user-online");
-      socket.off("user-offline");
-    };
-  }, []);
-
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
   const user = JSON.parse(localStorage.getItem("user"));
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [typingUser, setTypingUser] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [searchText, setSearchText] = useState("");
+
+  useEffect(() => {
+    socket.on("connect", () => {
+      socket.emit("user-connected", user.id);
+    });
+    socket.on("reply", (data) => {
+      setMessages((prev) => [...prev, data]);
+    });
+    socket.on("user-online", (userId) => {
+      setOnlineUsers((prev) => [...new Set([...prev, userId])]);
+    });
+    socket.on("user-offline", (userId) => {
+      setOnlineUsers((prev) => prev.filter((id) => id !== userId));
+    });
+    socket.on("user-typing", (senderId) => {
+      setTypingUser(senderId);
+      setTimeout(() => setTypingUser(null), 2000);
+    });
+    return () => {
+      socket.off("connect");
+      socket.off("reply");
+      socket.off("user-online");
+      socket.off("user-offline");
+      socket.off("user-typing");
+    };
+  }, []);
 
   useEffect(() => {
     const fetchMessages = async () => {
       const res = await api.get("/messages");
-      console.log("Fetched:", res.data);
       setMessages(res.data);
     };
     fetchMessages();
@@ -58,66 +53,209 @@ function Dashboard() {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       setUsers(res.data);
-      console.log(users);
     };
     fetchUsers();
   }, []);
 
-  return (
-    <>
-      <h2>Dashboard - Coming soon!</h2>
+  // WhatsApp jaisa: sirf wahi users jinke saath chat history hai
+  const conversationUserIds = new Set();
+  messages.forEach((msg) => {
+    if (msg.sender === user.id) conversationUserIds.add(msg.receiver);
+    if (msg.receiver === user.id) conversationUserIds.add(msg.sender);
+  });
+  const conversationUsers = users.filter((u) => conversationUserIds.has(u._id));
 
-      <div>
-        <h3>Contacts</h3>
-        <p>Selected: {selectedUser ? selectedUser.name : "None"}</p>
-        {users.map((u) => (
-          <p key={u._id} onClick={() => setSelectedUser(u)}>
-            {u.name}
-          </p>
-        ))}
-      </div>
+  const getLastMessage = (userId) => {
+    const relevant = messages.filter(
+      (m) =>
+        (m.sender === user.id && m.receiver === userId) ||
+        (m.sender === userId && m.receiver === user.id)
+    );
+    return relevant[relevant.length - 1];
+  };
 
-      <button
+  const searchResults = users.filter(
+    (u) =>
+      u._id !== user.id &&
+      u.name.toLowerCase().includes(searchText.toLowerCase())
+  );
+
+  const renderUserRow = (u) => {
+    const isOnline = onlineUsers.includes(u._id);
+    const lastMsg = getLastMessage(u._id);
+    return (
+      <div
+        key={u._id}
         onClick={() => {
-          if (messageText.trim() === "") return;
-          if (!selectedUser) return;
-          socket.emit("message_send", {
-            sender: user.id,
-            receiver: selectedUser._id,
-            text: messageText,
-          });
-          setMessageText("");
+          setSelectedUser(u);
+          setShowNewChat(false);
+          setSearchText("");
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "10px 8px",
+          borderRadius: "8px",
+          cursor: "pointer",
+          background: selectedUser?._id === u._id ? "#404249" : "transparent",
+          marginBottom: "4px",
         }}
       >
-        Send
-      </button>
-      {typingUser && <p>Typing...</p>}
-      <div>
-        {messages
-          .filter(
-            (msg) =>
-              selectedUser &&
-              ((msg.sender === user.id && msg.receiver === selectedUser._id) ||
-                (msg.sender === selectedUser._id && msg.receiver === user.id)),
-          )
-          .map((msg) => (
-            <p key={msg._id}>{msg.text}</p>
-          ))}
-
-        <input
-          type="text"
-          value={messageText}
-          onChange={(e) => {
-            setMessageText(e.target.value);
-            socket.emit("typing", {
-              senderId: user.id,
-              receiverId: selectedUser._id,
-            });
-          }}
-          placeholder="Type a message"
-        />
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <div style={{
+            width: "40px", height: "40px", borderRadius: "50%",
+            background: "#5865f2", color: "white", display: "flex",
+            alignItems: "center", justifyContent: "center", fontWeight: "bold",
+          }}>
+            {u.name.charAt(0).toUpperCase()}
+          </div>
+          <div style={{
+            width: "10px", height: "10px", borderRadius: "50%",
+            background: isOnline ? "#23a55a" : "#80848e",
+            position: "absolute", bottom: 0, right: 0, border: "2px solid #2b2d31",
+          }} />
+        </div>
+        <div style={{ overflow: "hidden", flex: 1 }}>
+          <div style={{ color: "#fff", fontWeight: "600", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {u.name}
+          </div>
+          {lastMsg && (
+            <div style={{ color: "#949ba4", fontSize: "13px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {lastMsg.text}
+            </div>
+          )}
+        </div>
       </div>
-    </>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100vh", background: "#1e1f22", fontFamily: "sans-serif", overflow: "hidden" }}>
+      
+      {/* Sidebar */}
+      <div style={{ width: "300px", flexShrink: 0, background: "#2b2d31", padding: "16px", color: "#dcddde", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <h3 style={{ color: "#fff", margin: 0 }}>Chats</h3>
+          <button
+            onClick={() => setShowNewChat(!showNewChat)}
+            style={{
+              background: "#5865f2", color: "white", border: "none",
+              borderRadius: "50%", width: "32px", height: "32px",
+              fontSize: "18px", cursor: "pointer",
+            }}
+          >
+            +
+          </button>
+        </div>
+
+        {showNewChat && (
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            autoFocus
+            style={{
+              padding: "8px 12px", borderRadius: "8px", border: "none",
+              outline: "none", background: "#383a40", color: "#fff", marginBottom: "12px",
+            }}
+          />
+        )}
+
+        <div style={{ overflowY: "auto", flex: 1 }}>
+          {showNewChat
+            ? searchResults.map(renderUserRow)
+            : conversationUsers.length > 0
+            ? conversationUsers.map(renderUserRow)
+            : <p style={{ color: "#72767d", fontSize: "14px" }}>No chats yet. Tap + to start one.</p>}
+        </div>
+      </div>
+
+      {/* Chat area */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#313338", minWidth: 0, overflow: "hidden" }}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid #26272b", color: "#fff", fontWeight: "bold", flexShrink: 0 }}>
+          {selectedUser ? selectedUser.name : "Select a contact"}
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "16px" }}>
+          {messages
+            .filter(
+              (msg) =>
+                selectedUser &&
+                ((msg.sender === user.id && msg.receiver === selectedUser._id) ||
+                  (msg.sender === selectedUser._id && msg.receiver === user.id))
+            )
+            .map((msg) => (
+              <div
+                key={msg._id}
+                style={{
+                  display: "flex",
+                  justifyContent: msg.sender === user.id ? "flex-end" : "flex-start",
+                  marginBottom: "10px",
+                }}
+              >
+                <div style={{
+                  display: "flex", flexDirection: "column",
+                  alignItems: msg.sender === user.id ? "flex-end" : "flex-start",
+                  maxWidth: "60%",
+                }}>
+                  <p style={{
+                    background: msg.sender === user.id ? "#5865f2" : "#404249",
+                    color: "white", padding: "10px 14px", borderRadius: "16px",
+                    width: "fit-content", wordBreak: "break-word", margin: 0,
+                  }}>
+                    {msg.text}
+                  </p>
+                  <span style={{ fontSize: "11px", color: "#72767d", marginTop: "2px" }}>
+                    {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          {typingUser && <p style={{ color: "#949ba4", paddingLeft: "8px" }}>Typing...</p>}
+        </div>
+
+        <div style={{ display: "flex", padding: "12px 16px", gap: "8px", flexShrink: 0 }}>
+          <input
+            type="text"
+            value={messageText}
+            onChange={(e) => {
+              setMessageText(e.target.value);
+              if (selectedUser) {
+                socket.emit("typing", { senderId: user.id, receiverId: selectedUser._id });
+              }
+            }}
+            placeholder="Type a message"
+            style={{
+              flex: 1, padding: "10px 14px", borderRadius: "20px",
+              border: "none", outline: "none", background: "#383a40", color: "#fff",
+            }}
+          />
+          <button
+            onClick={() => {
+              if (messageText.trim() === "") return;
+              if (!selectedUser) return;
+              const newMsg = {
+                _id: Date.now().toString(),
+                sender: user.id,
+                receiver: selectedUser._id,
+                text: messageText,
+              };
+              setMessages((prev) => [...prev, newMsg]);
+              socket.emit("message_send", newMsg);
+              setMessageText("");
+            }}
+            style={{
+              padding: "10px 20px", borderRadius: "20px", border: "none",
+              background: "#5865f2", color: "white", cursor: "pointer", fontWeight: "bold",
+            }}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
