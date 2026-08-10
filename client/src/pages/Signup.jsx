@@ -422,6 +422,7 @@ function Signup() {
 
         <button
           type="submit"
+          onClick={() => navigate("/login")}
           style={{
             width: "100%",
             padding: "13px",
