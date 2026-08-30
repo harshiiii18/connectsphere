@@ -8,7 +8,7 @@ A real-time full-stack chat application built with the MERN stack, featuring liv
 
 ---
 
-## ✨ Features
+## Features
 
 - 🔐 **Authentication** — Secure signup/login with JWT-based auth and password hashing
 - ⚡ **Real-Time Messaging** — Instant message delivery powered by Socket.IO
@@ -37,7 +37,7 @@ A real-time full-stack chat application built with the MERN stack, featuring liv
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 ConnectSphere/
@@ -60,7 +60,7 @@ ConnectSphere/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js (v18+)
@@ -102,7 +102,7 @@ ConnectSphere/
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [x] JWT authentication
 - [x] Real-time messaging with Socket.IO
@@ -131,19 +131,19 @@ ConnectSphere/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 This is currently a solo portfolio project, but suggestions and issues are welcome!
 
 ---
 
-## 📄 License
+## license
 
 This project is licensed under the MIT License.
 
 ---
 
-## 👩‍💻 Author
+## Author
 
 **Harshita Parsendiya**
 - GitHub: [@harshiiii18](https://github.com/harshiiii18)
